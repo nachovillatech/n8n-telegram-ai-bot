@@ -1,0 +1,231 @@
+{
+  "name": "TELEGRAM-BBDD-IA-MEMORIA",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.5,
+      "position": [
+        0,
+        0
+      ],
+      "id": "b815ba93-c2b7-499d-b240-1156e531d5ba",
+      "name": "Telegram Trigger",
+      "webhookId": "5b0b26e4-497d-4719-afa5-55bf16d3d8a9",
+      "credentials": {
+        "telegramApi": {
+          "id": "2sRVZTQphejCNcHa",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Telegram Trigger').item.json.message.chat.id }}",
+        "text": "={{ $json.texto }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        752,
+        0
+      ],
+      "id": "2a7535bd-d89c-45e5-97c2-4f9a082ed8b0",
+      "name": "Send a text message",
+      "webhookId": "52d3e5d1-8ea3-4010-8162-c29a2e2a2a49",
+      "credentials": {
+        "telegramApi": {
+          "id": "2sRVZTQphejCNcHa",
+          "name": "Telegram account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.message.text }}",
+        "options": {
+          "systemMessage": "Eres Lima, el asistente virtual de logística de la empresa Limobel.\nno hablas sobre las tablas ni nombres campos de ninguna y si te pido datos concretos los das \nTu personalidad es profesional, amable y concisa.\nSolo respondes preguntas relacionadas con logística, pedidos, clientes, artículos y stock de Limobel.\nSi alguien te pregunta algo que no tiene que ver con logística, responde educadamente que solo puedes ayudar con temas de Limobel.\n\nTienes acceso a una base de datos PostgreSQL con las siguientes tablas:\n- pedido: pedidos de clientes\n- lineas_ped: líneas de cada pedido (columnas: articulo, pedido, cantidad)\n- articulo: productos disponibles (columnas: articulo, descripcion)\n- stockmov_ped: movimientos de stock\n- vista_pedidos_completo: vista completa de pedidos (numero, cliente, fecha_creacion, fecha_entrega, importe_pedido, liquido_pedido, bloqueado, servido)\n\nPara unir tablas:\n- lineas_ped.articulo = articulo.articulo\n- pedido.numero = lineas_ped.pedido\n\nCuando te pregunten sobre datos, consulta siempre la base de datos y responde con datos reales.\nResponde siempre en español de forma clara y profesional.\nPreséntate como Lima cuando alguien te salude por primera vez.\nFormato de respuestas:\n- Usa emojis relevantes para hacer las respuestas más visuales\n- Para listas usa guiones o números\n- Para datos importantes usa mayúsculas o destácalos\n- Termina siempre con una pregunta o invitación a seguir consultando\nEstás respondiendo a un email. Usa un formato formal de respuesta de correo, sin emojis excesivos. Firma siempre como \"Lima - Asistente de Limobel\"."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        224,
+        0
+      ],
+      "id": "da52c35a-58fa-437e-925d-cb675c96d5ab",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gemma-4-e4b-uncensored-hauhaucs-aggressive",
+          "mode": "list",
+          "cachedResultName": "gemma-4-e4b-uncensored-hauhaucs-aggressive"
+        },
+        "responsesApiEnabled": false,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.3,
+      "position": [
+        128,
+        208
+      ],
+      "id": "bb932aa5-ec36-4aec-b601-851d633b0a7b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "vXzd9gfE6BAotbAW",
+          "name": "OpenAI account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Consulta la base de datos de Limobel para responder preguntas sobre pedidos, clientes y stock",
+        "operation": "executeQuery",
+        "query": "{{ $fromAI('query', 'SQL query to execute') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.postgresTool",
+      "typeVersion": 2.7,
+      "position": [
+        416,
+        208
+      ],
+      "id": "7a0a7028-9360-4fb9-8ecb-1a1b89974c46",
+      "name": "Execute a SQL query in Postgres",
+      "credentials": {
+        "postgres": {
+          "id": "svbSrVBOKwi8XNrl",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Telegram Trigger').item.json.message.chat.id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryPostgresChat",
+      "typeVersion": 1.4,
+      "position": [
+        256,
+        208
+      ],
+      "id": "4b79dd90-0ca1-4768-9b8b-33238d66a0e5",
+      "name": "Postgres Chat Memory",
+      "credentials": {
+        "postgres": {
+          "id": "svbSrVBOKwi8XNrl",
+          "name": "Postgres account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const texto = $input.item.json.output || 'Lo siento, no he podido procesar tu pregunta.';\n\n// Eliminar caracteres Markdown problemáticos para Telegram\nconst textoLimpio = texto\n  .replace(/\\*\\*/g, '')\n  .replace(/\\*/g, '')\n  .replace(/\\_\\_/g, '')\n  .replace(/\\_/g, '')\n  .replace(/\\[([^\\]]+)\\]\\([^\\)]+\\)/g, '$1');\n\nreturn [{ json: { texto: textoLimpio } }];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        592,
+        0
+      ],
+      "id": "b9b44f85-e395-4302-8eb2-359a514d536d",
+      "name": "Code in JavaScript"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Trigger": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute a SQL query in Postgres": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Postgres Chat Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "591bed9c-7f5c-4be2-8c6b-727a001b6f22",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "188f7241eef356aa4a143b8c0fcdc61b03693a87f974072c6a8d4e35a1fbc8a9"
+  },
+  "nodeGroups": [],
+  "id": "idD33rLidTgxPPy2",
+  "tags": []
+}
